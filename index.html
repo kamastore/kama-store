@@ -37,7 +37,7 @@ header p{margin:6px 0 0;color:var(--mu)}
 #admin hr{border:0;border-top:1px solid var(--bd);margin:14px 0}
 footer{text-align:center;padding:24px 16px 40px;border-top:1px solid var(--bd);color:var(--mu)}footer:empty{display:none}footer p{margin:0 0 10px}.soc{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.soc a{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;text-decoration:none}.soc a:hover{background:var(--ac);color:var(--acx);border-color:var(--ac)}
 #toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 18px;border-radius:99px;display:none}
-#auth h2{margin:0 0 10px;font-size:1.1rem}#auth .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#auth input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#auth select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#bar{align-items:center}#bar button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;font:inherit;cursor:pointer}#admin h3{margin:10px 0 8px;font-size:1rem}#admin label{display:flex;gap:8px;align-items:center}#admin input[type=color]{width:56px;padding:2px;height:36px}</style>
+#auth h2{margin:0 0 10px;font-size:1.1rem}#auth .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#auth input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#auth select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#bar{align-items:center}#bar button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;font:inherit;cursor:pointer}#admin h3{margin:10px 0 8px;font-size:1rem}#admin label{display:flex;gap:8px;align-items:center}#admin input[type=color]{width:56px;padding:2px;height:36px}#chat{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom,0px));left:12px;width:min(380px,calc(100vw - 24px));height:440px;background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;z-index:20;box-shadow:0 8px 30px #0003}#chat[hidden]{display:none}.ch-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd)}.ch-h button{border:0;background:none;color:var(--tx);font-size:1.1rem;cursor:pointer}.ch-b{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:6px}.msg{max-width:80%;padding:8px 12px;border-radius:12px;background:var(--bd);align-self:flex-start;word-break:break-word}.msg.me{background:var(--ac);color:var(--acx);align-self:flex-end}.ch-f{display:flex;gap:8px;padding:10px;border-top:1px solid var(--bd)}.ch-f input{flex:1;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}</style>
 </head>
 <body>
 <header><h1 id="sname" dir="auto"></h1><p>ملابس ومنتجات مختارة بعناية</p></header>
@@ -46,6 +46,7 @@ footer{text-align:center;padding:24px 16px 40px;border-top:1px solid var(--bd);c
   <div class="grid" id="grid"></div>
 </div>
 <footer id="foot"></footer>
+<div id="chat" hidden></div><div id="vis" style="text-align:center;color:var(--mu);padding-bottom:30px"></div>
 <div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -60,13 +61,14 @@ const SH = () => (location.hash.match(/^#shop-([0-9a-f-]{36})$/) || [])[1] || nu
 let shopId = SH(), me = null, role = 'user', perm = {}, cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
 const isAdmin = () => role === 'admin' || role === 'owner', isOwner = () => role === 'owner';
 const has = k => isOwner() || !!perm[k], hasAny = () => has('can_categories') || has('can_withdrawals') || has('can_resets'), showPanel = () => isOwner() || (role === 'admin' && (!!perm.can_panel || hasAny()));
-const PERMS = [['can_panel', 'لوحة'], ['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد']];
+const PERMS = [['can_panel', 'لوحة'], ['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد'], ['can_chat', 'دردشة']];
 const val = id => $(id).value.trim();
 async function act(p, ok) { const r = await p; if (r.error) { toast(r.error.message); return false } if (ok) toast(ok); await load(); return true }
 
 async function load() {
   const [s, p, c] = await Promise.all([sb.from('settings').select('*').eq('id', 1).maybeSingle(), sb.from('products').select('*').order('created_at', { ascending: false }), sb.from('categories').select('*').order('sort')]);
   cfg = s.data || {}; prods = p.data || []; cats = c.data || [];
+  chatSet = new Set((await sb.rpc('chat_shops')).data || []);
   if (me && isAdmin()) {
     const w = await sb.from('wallet_tx').select('amount').eq('user_id', me.id);
     bal = (w.data || []).reduce((a, x) => a + Number(x.amount), 0);
@@ -79,7 +81,7 @@ async function load() {
 }
 async function setUser(u) {
   me = u || null; role = 'user'; perm = {};
-  if (me) { const pr = (await sb.from('profiles').select('role,can_panel,can_categories,can_withdrawals,can_resets').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
+  if (me) { const pr = (await sb.from('profiles').select('role,can_panel,can_categories,can_withdrawals,can_resets,can_chat').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
   await load();
 }
 
@@ -106,9 +108,11 @@ function render() {
     const wa = p.whatsapp || cfg.whatsapp;
     const msg = encodeURIComponent('أهلاً، عايز أسأل عن: ' + p.name + ' (' + p.price + ' ج.م)');
     const btn = wa ? `<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${msg}">تواصل مع المحل</a>` : '';
+    const cb = p.seller_id && chatSet.has(p.seller_id) && (!me || me.id !== p.seller_id) ? `<button class="btn sec" data-chat="${esc(p.seller_id)}" data-t="${esc((p.shop_name || 'المحل') + ' · ' + p.name)}">دردشة مع المحل</button>` : '';
     const del = me && (isOwner() || p.seller_id === me.id) ? `<button class="btn sec" data-del="${esc(p.id)}">حذف</button>` : '';
-    return `<div class="card"><div class="ph">${img}</div><div class="info"><span class="cat">${esc(p.category)}</span><h3>${esc(p.name)}</h3><span class="price">${esc(String(p.price))} ج.م</span><span class="cat">🏬 ${p.seller_id ? '<a href="#shop-' + esc(p.seller_id) + '" style="color:inherit">' + esc(p.shop_name || cfg.store_name || 'Kama Store') + '</a>' : esc(p.shop_name || cfg.store_name || 'Kama Store')}</span>${btn}${del}</div></div>`;
+    return `<div class="card"><div class="ph">${img}</div><div class="info"><span class="cat">${esc(p.category)}</span><h3>${esc(p.name)}</h3><span class="price">${esc(String(p.price))} ج.م</span><span class="cat">🏬 ${p.seller_id ? '<a href="#shop-' + esc(p.seller_id) + '" style="color:inherit">' + esc(p.shop_name || cfg.store_name || 'Kama Store') + '</a>' : esc(p.shop_name || cfg.store_name || 'Kama Store')}</span>${btn}${cb}${del}</div></div>`;
   }).join('') : (inCat ? '' : '<div class="empty">مفيش منتجات في القسم ده لسه</div>');
+  $('grid').querySelectorAll('[data-chat]').forEach(b => b.onclick = () => me ? openChat(b.dataset.chat, me.id, b.dataset.t) : toast('سجّل دخول الأول علشان تبدأ دردشة'));
   $('grid').querySelectorAll('[data-del]').forEach(b => b.onclick = () => confirm('تحذف المنتج؟') && act(sb.from('products').delete().eq('id', b.dataset.del)));
   const l = Object.entries(SOC).filter(([k]) => cfg[k]).map(([k, n]) => `<a href="${esc(cfg[k])}" target="_blank" rel="noopener">${n}</a>`);
   if (cfg.whatsapp) l.push(`<a href="https://wa.me/${esc(cfg.whatsapp)}" target="_blank" rel="noopener">واتساب</a>`);
@@ -118,9 +122,46 @@ function render() {
 
 function renderBar() {
   const b = $('bar');
-  if (me) { b.innerHTML = `<span style="color:var(--mu)">${esc(me.email)} ${role !== 'user' ? '(' + (isOwner() ? 'مالك' : 'أدمن') + ')' : ''}</span><button id="lo">خروج</button>`; $('lo').onclick = () => sb.auth.signOut() }
+  if (me) { b.innerHTML = `<span style="color:var(--mu)">${esc(me.email)} ${role !== 'user' ? '(' + (isOwner() ? 'مالك' : 'أدمن') + ')' : ''}</span>${role === 'user' || has('can_chat') ? '<button id="inb">رسائلي</button>' : ''}<button id="lo">خروج</button>`; $('lo').onclick = () => sb.auth.signOut(); if ($('inb')) $('inb').onclick = openInbox }
   else { b.innerHTML = `<button id="li">تسجيل الدخول</button><button id="su">حساب جديد</button>`; $('li').onclick = () => authBox('login'); $('su').onclick = () => authBox('signup') }
 }
+let chatKey = null, chatTimer = null, chatSet = new Set();
+function openChat(shop, buyer, title) {
+  clearInterval(chatTimer); chatKey = { shop, buyer, title }; const c = $('chat'); c.hidden = false;
+  c.innerHTML = `<div class="ch-h"><b>${esc(title)}</b><button id="chx">✕</button></div><div class="ch-b" id="chb"></div><div class="ch-f"><input id="chi" placeholder="اكتب رسالتك..."><button class="btn" id="chs" type="button" style="margin:0;width:auto;padding:8px 14px">إرسال</button></div>`;
+  $('chx').onclick = closeChat; $('chs').onclick = sendChat; $('chi').onkeydown = e => { if (e.key === 'Enter') sendChat() };
+  pollChat(); chatTimer = setInterval(pollChat, 5000);
+}
+function closeChat() { clearInterval(chatTimer); $('chat').hidden = true; chatKey = null }
+async function pollChat() {
+  if (!chatKey || !me) return;
+  const { data } = await sb.from('messages').select('*').eq('shop_id', chatKey.shop).eq('buyer_id', chatKey.buyer).order('created_at');
+  const b = $('chb'); if (!b) return;
+  const bottom = b.scrollHeight - b.scrollTop - b.clientHeight < 40;
+  b.innerHTML = (data || []).map(m => `<div class="msg ${m.sender_id === me.id ? 'me' : ''}">${esc(m.body)}</div>`).join('') || '<div class="empty">ابدأ المحادثة</div>';
+  if (bottom || !b.dataset.s) { b.scrollTop = b.scrollHeight; b.dataset.s = 1 }
+}
+async function sendChat() {
+  const i = $('chi'), body = i.value.trim(); if (!body || !chatKey) return;
+  i.value = '';
+  const { error } = await sb.from('messages').insert({ shop_id: chatKey.shop, buyer_id: chatKey.buyer, sender_id: me.id, product_name: chatKey.title, body });
+  error ? toast(error.message) : pollChat();
+}
+async function openInbox() {
+  const { data, error } = await sb.from('messages').select('shop_id,buyer_id,body,created_at').order('created_at', { ascending: false }).limit(300);
+  if (error) return toast(error.message);
+  const seen = {}; (data || []).forEach(m => { const k = m.shop_id + '|' + m.buyer_id; if (!seen[k]) seen[k] = m });
+  const names = {}; prods.forEach(p => { if (p.seller_id) names[p.seller_id] = p.shop_name || 'محل' });
+  clearInterval(chatTimer); chatKey = null; const c = $('chat'); c.hidden = false;
+  c.innerHTML = `<div class="ch-h"><b>رسائلي</b><button id="chx">✕</button></div><div class="ch-b">${Object.values(seen).map(m => { const t = m.shop_id === me.id ? 'زبون ' + m.buyer_id.slice(0, 4) : names[m.shop_id] || 'محل'; return `<a href="#" class="msg" data-s="${esc(m.shop_id)}" data-b="${esc(m.buyer_id)}" data-t="${esc(t)}" style="display:block;max-width:100%;align-self:stretch;text-decoration:none;color:inherit"><b>${esc(t)}</b><br><small>${esc(m.body.slice(0, 40))}</small></a>` }).join('') || '<div class="empty">مفيش رسائل لسه</div>'}</div>`;
+  $('chx').onclick = closeChat;
+  c.querySelectorAll('[data-s]').forEach(a => a.onclick = e => { e.preventDefault(); openChat(a.dataset.s, a.dataset.b, a.dataset.t) });
+}
+(async () => {
+  let isNew = true; try { isNew = !sessionStorage.getItem('v'); sessionStorage.setItem('v', '1') } catch (e) { }
+  const { data } = await sb.rpc('track_visit', { p_new: isNew });
+  if (data != null) $('vis').textContent = 'عدد الزيارات: ' + Number(data).toLocaleString('ar-EG');
+})();
 let resetEmail = '';
 const who = () => val('ae') || val('aph2').replace(/\s/g, '');
 const GOVS = ['القاهرة','الجيزة','الإسكندرية','القليوبية','الشرقية','الدقهلية','البحيرة','الغربية','المنوفية','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس','شمال سيناء','جنوب سيناء','الفيوم','بني سويف','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان','البحر الأحمر','الوادي الجديد','مطروح'];
