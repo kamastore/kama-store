@@ -125,17 +125,39 @@ function authBox(mode) {
   const a = $('auth'); a.hidden = false;
   const em = `<input id="ae" type="email" placeholder="الإيميل" dir="ltr">`;
   const pw = `<input id="ap" type="password" placeholder="الباسورد (6 حروف على الأقل)" dir="ltr">`;
-  const t = { login: 'تسجيل الدخول', signup: 'إنشاء حساب جديد', forgot: 'نسيت الباسورد', code: 'كود الاستعادة', newpw: 'باسورد جديد' }[mode];
+  const t = { login: 'تسجيل الدخول', signup: 'إنشاء حساب جديد', forgot: 'استعادة بالإيميل', forgotw: 'نسيت الباسورد', mycode: 'كود الاستعادة من المالك', code: 'كود الاستعادة', newpw: 'باسورد جديد' }[mode];
   let f = '', go = 'دخول';
   if (mode === 'login') f = em + pw + '<a href="#" id="fg" style="color:var(--ac)">نسيت الباسورد؟</a>';
   if (mode === 'signup') { f = em + pw + `<input id="aph" type="tel" placeholder="رقم الموبايل 01xxxxxxxxx" dir="ltr"><select id="ag"><option value="">المحافظة</option>${GOVS.map(g => `<option>${g}</option>`).join('')}</select><input id="aa" placeholder="المنطقة">`; go = 'إنشاء الحساب' }
-  if (mode === 'forgot') { f = em; go = 'ابعت كود الاستعادة' }
+  if (mode === 'forgotw') { f = `<input id="aw" placeholder="إيميلك أو رقم موبايلك" dir="ltr">`; go = 'ابعت الطلب على واتساب' }
+  if (mode === 'mycode') { f = `<input id="aw" placeholder="إيميلك أو رقم موبايلك" dir="ltr"><input id="ac" placeholder="الكود اللي بعتهولك المالك" dir="ltr">` + pw.replace('الباسورد', 'الباسورد الجديد'); go = 'تغيير الباسورد' }
+  if (mode === 'forgot') { f = em + `<input id="aph2" type="tel" placeholder="أو رقم موبايلك (لو مش قادر تفتح الإيميل)" dir="ltr">`; go = 'ابعت كود الاستعادة على الإيميل' }
   if (mode === 'code') { f = `<input id="ac" placeholder="الكود اللي وصلك على الإيميل" dir="ltr">` + pw.replace('الباسورد', 'الباسورد الجديد'); go = 'تغيير الباسورد' }
   if (mode === 'newpw') { f = pw.replace('الباسورد', 'الباسورد الجديد'); go = 'حفظ الباسورد الجديد' }
-  a.innerHTML = `<h2>${t}</h2><div class="row">${f}<button class="btn" id="ago" type="button">${go}</button></div>`;
-  if ($('fg')) $('fg').onclick = e => { e.preventDefault(); authBox('forgot') };
+  a.innerHTML = `<h2>${t}</h2><div class="row">${f}<button class="btn" id="ago" type="button">${go}</button>${mode === 'forgot' ? '<button class="btn sec" id="wa2" type="button" style="margin:0">ابعت طلب استعادة على واتساب</button>' : ''}${mode === 'forgotw' ? '<button class="btn sec" id="hc" type="button" style="margin:0">عندي كود جاهز</button><a href="#" id="fe" style="color:var(--ac)">أو استعادة بالإيميل</a>' : ''}</div>`;
+  if ($('hc')) $('hc').onclick = () => authBox('mycode');
+  if ($('fe')) $('fe').onclick = e => { e.preventDefault(); authBox('forgot') };
+  if ($('wa2')) $('wa2').onclick = () => {
+    const ph = val('aph2').replace(/\D/g, '');
+    if (!val('ae') && !/^01\d{9}$/.test(ph)) return toast('اكتب إيميلك أو رقم موبايلك');
+    if (!cfg.whatsapp) return toast('رقم الدعم غير متاح حالياً');
+    window.open('https://wa.me/' + cfg.whatsapp + '?text=' + encodeURIComponent('نسيت الباسورد.\nالإيميل: ' + val('ae') + '\nالموبايل: ' + ph), '_blank');
+  };
+  if ($('fg')) $('fg').onclick = e => { e.preventDefault(); authBox('forgotw') };
   $('ago').onclick = async () => {
     let r = {};
+    if (mode === 'forgotw') {
+      if (!val('aw')) return toast('اكتب إيميلك أو رقم موبايلك');
+      if (!cfg.whatsapp) return toast('رقم الدعم غير متاح حالياً');
+      window.open('https://wa.me/' + cfg.whatsapp + '?text=' + encodeURIComponent('نسيت الباسورد. بياناتي: ' + val('aw')), '_blank');
+      return authBox('mycode');
+    }
+    if (mode === 'mycode') {
+      const { data, error } = await sb.rpc('reset_with_code', { p_who: val('aw'), p_code: val('ac'), p_new: $('ap').value });
+      if (error) return toast(error.message);
+      if (data !== 'ok') return toast(data);
+      toast('تم تغيير الباسورد، سجّل دخول بيه'); return authBox('login');
+    }
     if (mode === 'login') r = await sb.auth.signInWithPassword({ email: val('ae'), password: $('ap').value });
     if (mode === 'signup') {
       const ph = val('aph').replace(/\s/g, '');
@@ -192,6 +214,8 @@ async function renderOwner() {
   <div class="row" style="margin-top:8px"><input id="nc" placeholder="اسم قسم جديد"><button class="btn" data-a="catadd" type="button">إضافة قسم</button></div>
   <hr><h3>شحن رصيد محل (بعد ما يدفعلك)</h3>
   <div class="row"><input id="ke" placeholder="إيميل المحل" dir="ltr"><input id="ka" type="number" placeholder="المبلغ"><button class="btn" data-a="credit" type="button">شحن</button></div>
+  <hr><h3>كود استعادة باسورد لمستخدم</h3>
+  <div class="row"><input id="rw" placeholder="إيميل أو موبايل المستخدم" dir="ltr"><button class="btn" data-a="mkcode" type="button">طلّع كود</button></div><div id="rcres" style="margin-top:8px"></div>
   <hr><h3>طلبات السحب المعلقة</h3>
   ${(w.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span dir="ltr">${esc(x.email)}</span><span>${x.amount} ج.م · ${esc(x.method)} · <span dir="ltr">${esc(x.account)}</span></span><span><button class="btn" style="display:inline-block;margin:0 4px" data-a="wdok" data-id="${esc(x.id)}">تم التحويل</button><button class="btn sec" style="display:inline-block;margin:0" data-a="wdno" data-id="${esc(x.id)}">رفض</button></span></div>`).join('') || '<div class="empty">لا يوجد</div>'}
   <hr><h3>المستخدمين والأدمنز</h3>
@@ -227,6 +251,13 @@ $('admin').onclick = e => {
   if (d.a === 'wdok') act(sb.rpc('mark_withdrawal', { p_id: d.id, p_status: 'paid' }), 'تم');
   if (d.a === 'wdno') act(sb.rpc('mark_withdrawal', { p_id: d.id, p_status: 'rejected' }), 'تم الرفض ورجوع الرصيد');
   if (d.a === 'csv') importCsv();
+  if (d.a === 'mkcode') (async () => {
+    const { data, error } = await sb.rpc('owner_make_reset_code', { p_who: val('rw') });
+    if (error) return toast(error.message);
+    const x = data[0];
+    const wa = x.phone ? 'https://wa.me/20' + x.phone.slice(1) + '?text=' + encodeURIComponent('كود استعادة الباسورد: ' + x.code + ' (صالح 30 دقيقة)') : '';
+    $('rcres').innerHTML = `<b dir="ltr" style="font-size:1.3rem">${esc(x.code)}</b> ← ${esc(x.email)} ${wa ? `<a class="btn" style="display:inline-block;margin:0 8px" target="_blank" rel="noopener" href="${wa}">ابعته على واتساب</a>` : '(مفيش موبايل مسجل، ابعته بنفسك)'}`;
+  })();
   if (d.a === 'role') act(sb.from('profiles').update({ role: d.r }).eq('id', d.id), 'تم التعديل');
 };
 
