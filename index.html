@@ -42,7 +42,7 @@ footer{text-align:center;padding:24px 16px 40px;border-top:1px solid var(--bd);c
 <body>
 <header><h1 id="sname" dir="auto"></h1><p>ملابس ومنتجات مختارة بعناية</p></header>
 <div class="wrap">
-    <div id="bar" class="tabs"></div><div id="auth" hidden style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px"></div><div id="admin" hidden></div><div class="tabs" id="tabs"></div>
+    <div id="bar" class="tabs"></div><div id="auth" hidden style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px"></div><div id="admin" hidden></div><div id="shops"></div><div class="tabs" id="tabs"></div>
   <div class="grid" id="grid"></div>
 </div>
 <footer id="foot"></footer>
@@ -56,7 +56,8 @@ const $ = id => document.getElementById(id);
 const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML.replace(/"/g, '&quot;') };
 const toast = m => { const t = $('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3500) };
 const normUrl = v => { v = (v || '').trim(); if (!v) return ''; if (!/^https?:\/\//i.test(v)) v = 'https://' + v; try { return new URL(v).href } catch (e) { return '' } };
-let me = null, role = 'user', cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
+const SH = () => (location.hash.match(/^#shop-([0-9a-f-]{36})$/) || [])[1] || null;
+let shopId = SH(), me = null, role = 'user', cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
 const isAdmin = () => role === 'admin' || role === 'owner', isOwner = () => role === 'owner';
 const val = id => $(id).value.trim();
 async function act(p, ok) { const r = await p; if (r.error) { toast(r.error.message); return false } if (ok) toast(ok); await load(); return true }
@@ -80,21 +81,32 @@ async function setUser(u) {
   await load();
 }
 
+function catShops() {
+  const m = {};
+  prods.filter(p => p.category === cur && p.seller_id).forEach(p => { const x = m[p.seller_id] || (m[p.seller_id] = { n: p.shop_name || 'محل', c: 0 }); x.c++ });
+  const e = Object.entries(m);
+  return `<h2 style="text-align:center;margin:0 0 12px">محلات ${esc(cur)}</h2>` + (e.length ? `<div class="grid" style="margin-bottom:20px">${e.map(([id, x]) => `<a class="card" href="#shop-${esc(id)}" style="text-decoration:none;color:inherit"><div class="ph" style="aspect-ratio:3/1;font-size:2rem">🏬</div><div class="info"><h3>${esc(x.n)}</h3><span class="cat">${x.c} منتج في ${esc(cur)}</span></div></a>`).join('')}</div>` : '<div class="empty">مفيش محلات في القسم ده لسه</div>');
+}
 function render() {
   const name = cfg.store_name || 'Kama Store';
   document.title = name; $('sname').textContent = name;
   const names = ['الكل', ...cats.map(c => c.name)];
   $('tabs').innerHTML = names.map(c => `<button class="${c === cur ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => { cur = b.dataset.c; render() });
-  const list = prods.filter(p => cur === 'الكل' || p.category === cur);
+  const inCat = !shopId && cur !== 'الكل';
+  const shops = {}; prods.forEach(p => { if (p.seller_id && p.shop_name) shops[p.seller_id] = p.shop_name });
+  $('shops').innerHTML = shopId
+    ? `<div style="text-align:center;margin-bottom:14px"><h2 style="margin:0">${esc(shops[shopId] || 'محل')}</h2><a href="#" style="color:var(--ac)">← ${cur === 'الكل' ? 'كل المحلات' : 'محلات ' + esc(cur)}</a> · <a href="#shop-${shopId}" style="color:var(--ac)" onclick="navigator.clipboard.writeText(location.origin+location.pathname+'#shop-${shopId}');toast('تم نسخ رابط المحل')">نسخ رابط المحل</a></div>`
+    : inCat ? catShops() : (Object.keys(shops).length ? `<p style="text-align:center;color:var(--mu);margin:0 0 6px">المحلات</p><div class="soc" style="margin-bottom:14px">${Object.entries(shops).map(([id, n]) => `<a href="#shop-${esc(id)}">${esc(n)}</a>`).join('')}</div>` : '');
+  const list = inCat ? [] : prods.filter(p => (!shopId || p.seller_id === shopId) && (cur === 'الكل' || p.category === cur));
   $('grid').innerHTML = list.length ? list.map(p => {
     const img = p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}">` : '🛍️';
     const wa = p.whatsapp || cfg.whatsapp;
     const msg = encodeURIComponent('أهلاً، عايز أسأل عن: ' + p.name + ' (' + p.price + ' ج.م)');
     const btn = wa ? `<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${msg}">تواصل مع المحل</a>` : '';
     const del = me && (isOwner() || p.seller_id === me.id) ? `<button class="btn sec" data-del="${esc(p.id)}">حذف</button>` : '';
-    return `<div class="card"><div class="ph">${img}</div><div class="info"><span class="cat">${esc(p.category)}${p.shop_name ? ' · ' + esc(p.shop_name) : ''}</span><h3>${esc(p.name)}</h3><span class="price">${esc(String(p.price))} ج.م</span>${btn}${del}</div></div>`;
-  }).join('') : '<div class="empty">مفيش منتجات في القسم ده لسه</div>';
+    return `<div class="card"><div class="ph">${img}</div><div class="info"><span class="cat">${esc(p.category)}${p.seller_id && p.shop_name ? ' · <a href="#shop-' + esc(p.seller_id) + '" style="color:inherit">' + esc(p.shop_name) + '</a>' : ''}</span><h3>${esc(p.name)}</h3><span class="price">${esc(String(p.price))} ج.م</span>${btn}${del}</div></div>`;
+  }).join('') : (inCat ? '' : '<div class="empty">مفيش منتجات في القسم ده لسه</div>');
   $('grid').querySelectorAll('[data-del]').forEach(b => b.onclick = () => confirm('تحذف المنتج؟') && act(sb.from('products').delete().eq('id', b.dataset.del)));
   const l = Object.entries(SOC).filter(([k]) => cfg[k]).map(([k, n]) => `<a href="${esc(cfg[k])}" target="_blank" rel="noopener">${n}</a>`);
   if (cfg.whatsapp) l.push(`<a href="https://wa.me/${esc(cfg.whatsapp)}" target="_blank" rel="noopener">واتساب</a>`);
@@ -125,6 +137,7 @@ async function renderAdmin() {
   <div class="row"><b>رصيدك: ${bal} ج.م</b><span>رسوم نشر المنتج: ${cfg.listing_fee ?? 0} ج.م</span></div>
   <hr><h3>بيانات محلك (بتظهر على منتجاتك)</h3>
   <div class="row"><input id="shn" placeholder="اسم المحل" value="${esc(shop.shop_name)}"><input id="shw" placeholder="واتساب المحل 201xxxxxxxxx" dir="ltr" value="${esc(shop.whatsapp)}"><button class="btn" data-a="shop" type="button">حفظ</button></div>
+  <div class="row" style="margin-top:8px"><a class="btn sec" style="margin:0" href="#shop-${me.id}">فتح صفحة محلي</a><button class="btn sec" style="margin:0" type="button" onclick="navigator.clipboard.writeText(location.origin+location.pathname+'#shop-${me.id}');toast('تم نسخ رابط محلك')">نسخ رابط محلي</button></div>
   <hr><h3>إضافة منتج</h3>
   <form id="f"><input id="fn" placeholder="اسم المنتج" required><input id="fp" type="number" min="0" placeholder="السعر" required><select id="fc">${cats.map(c => `<option>${esc(c.name)}</option>`).join('')}</select><input id="ff" type="file" accept="image/*"><button class="btn" type="submit">نشر المنتج</button></form>
   <hr><h3>سحب الرصيد</h3>
@@ -175,6 +188,7 @@ $('admin').onclick = e => {
   if (d.a === 'role') act(sb.from('profiles').update({ role: d.r }).eq('id', d.id), 'تم التعديل');
 };
 
+window.onhashchange = () => { shopId = SH(); render(); window.scrollTo(0, 0) };
 (async () => {
   const { data: { session } } = await sb.auth.getSession(); await setUser(session?.user);
   sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') sb.auth.getSession().then(r => setUser(r.data.session?.user)) });
