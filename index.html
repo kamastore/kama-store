@@ -37,7 +37,7 @@ header p{margin:6px 0 0;color:var(--mu)}
 #admin hr{border:0;border-top:1px solid var(--bd);margin:14px 0}
 footer{text-align:center;padding:24px 16px 40px;border-top:1px solid var(--bd);color:var(--mu)}footer:empty{display:none}footer p{margin:0 0 10px}.soc{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.soc a{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;text-decoration:none}.soc a:hover{background:var(--ac);color:var(--acx);border-color:var(--ac)}
 #toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 18px;border-radius:99px;display:none}
-#auth h2{margin:0 0 10px;font-size:1.1rem}#auth .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#auth input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#bar{align-items:center}#bar button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;font:inherit;cursor:pointer}#admin h3{margin:10px 0 8px;font-size:1rem}#admin label{display:flex;gap:8px;align-items:center}#admin input[type=color]{width:56px;padding:2px;height:36px}</style>
+#auth h2{margin:0 0 10px;font-size:1.1rem}#auth .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#auth input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#auth select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#bar{align-items:center}#bar button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;font:inherit;cursor:pointer}#admin h3{margin:10px 0 8px;font-size:1rem}#admin label{display:flex;gap:8px;align-items:center}#admin input[type=color]{width:56px;padding:2px;height:36px}</style>
 </head>
 <body>
 <header><h1 id="sname" dir="auto"></h1><p>ملابس ومنتجات مختارة بعناية</p></header>
@@ -119,14 +119,35 @@ function renderBar() {
   if (me) { b.innerHTML = `<span style="color:var(--mu)">${esc(me.email)} ${role !== 'user' ? '(' + (isOwner() ? 'مالك' : 'أدمن') + ')' : ''}</span><button id="lo">خروج</button>`; $('lo').onclick = () => sb.auth.signOut() }
   else { b.innerHTML = `<button id="li">تسجيل الدخول</button><button id="su">حساب جديد</button>`; $('li').onclick = () => authBox('login'); $('su').onclick = () => authBox('signup') }
 }
+let resetEmail = '';
+const GOVS = ['القاهرة','الجيزة','الإسكندرية','القليوبية','الشرقية','الدقهلية','البحيرة','الغربية','المنوفية','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس','شمال سيناء','جنوب سيناء','الفيوم','بني سويف','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان','البحر الأحمر','الوادي الجديد','مطروح'];
 function authBox(mode) {
   const a = $('auth'); a.hidden = false;
-  a.innerHTML = `<h2>${mode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}</h2><div class="row"><input id="ae" type="email" placeholder="الإيميل" dir="ltr"><input id="ap" type="password" placeholder="الباسورد (6 حروف على الأقل)" dir="ltr"><button class="btn" id="ago" type="button">${mode === 'login' ? 'دخول' : 'إنشاء الحساب'}</button></div>`;
+  const em = `<input id="ae" type="email" placeholder="الإيميل" dir="ltr">`;
+  const pw = `<input id="ap" type="password" placeholder="الباسورد (6 حروف على الأقل)" dir="ltr">`;
+  const t = { login: 'تسجيل الدخول', signup: 'إنشاء حساب جديد', forgot: 'نسيت الباسورد', code: 'كود الاستعادة', newpw: 'باسورد جديد' }[mode];
+  let f = '', go = 'دخول';
+  if (mode === 'login') f = em + pw + '<a href="#" id="fg" style="color:var(--ac)">نسيت الباسورد؟</a>';
+  if (mode === 'signup') { f = em + pw + `<input id="aph" type="tel" placeholder="رقم الموبايل 01xxxxxxxxx" dir="ltr"><select id="ag"><option value="">المحافظة</option>${GOVS.map(g => `<option>${g}</option>`).join('')}</select><input id="aa" placeholder="المنطقة">`; go = 'إنشاء الحساب' }
+  if (mode === 'forgot') { f = em; go = 'ابعت كود الاستعادة' }
+  if (mode === 'code') { f = `<input id="ac" placeholder="الكود اللي وصلك على الإيميل" dir="ltr">` + pw.replace('الباسورد', 'الباسورد الجديد'); go = 'تغيير الباسورد' }
+  if (mode === 'newpw') { f = pw.replace('الباسورد', 'الباسورد الجديد'); go = 'حفظ الباسورد الجديد' }
+  a.innerHTML = `<h2>${t}</h2><div class="row">${f}<button class="btn" id="ago" type="button">${go}</button></div>`;
+  if ($('fg')) $('fg').onclick = e => { e.preventDefault(); authBox('forgot') };
   $('ago').onclick = async () => {
-    const c = { email: val('ae'), password: $('ap').value };
-    const { error } = mode === 'login' ? await sb.auth.signInWithPassword(c) : await sb.auth.signUp(c);
-    if (error) return toast(error.message);
-    a.hidden = true; toast(mode === 'login' ? 'تم الدخول' : 'تم إنشاء الحساب');
+    let r = {};
+    if (mode === 'login') r = await sb.auth.signInWithPassword({ email: val('ae'), password: $('ap').value });
+    if (mode === 'signup') {
+      const ph = val('aph').replace(/\s/g, '');
+      if (!/^01\d{9}$/.test(ph)) return toast('اكتب رقم موبايل مصري صحيح (11 رقم)');
+      if (!$('ag').value || !val('aa')) return toast('اختار المحافظة واكتب المنطقة');
+      r = await sb.auth.signUp({ email: val('ae'), password: $('ap').value, options: { data: { phone: ph, governorate: $('ag').value, area: val('aa') } } });
+    }
+    if (mode === 'forgot') { r = await sb.auth.resetPasswordForEmail(val('ae'), { redirectTo: location.origin + location.pathname }); if (!r.error) { resetEmail = val('ae'); toast('اتبعتلك كود على الإيميل'); return authBox('code') } }
+    if (mode === 'code') { r = await sb.auth.verifyOtp({ email: resetEmail, token: val('ac'), type: 'recovery' }); if (!r.error) r = await sb.auth.updateUser({ password: $('ap').value }) }
+    if (mode === 'newpw') r = await sb.auth.updateUser({ password: $('ap').value });
+    if (r.error) return toast(r.error.message);
+    a.hidden = true; toast('تم');
   };
 }
 
@@ -174,7 +195,7 @@ async function renderOwner() {
   <hr><h3>طلبات السحب المعلقة</h3>
   ${(w.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span dir="ltr">${esc(x.email)}</span><span>${x.amount} ج.م · ${esc(x.method)} · <span dir="ltr">${esc(x.account)}</span></span><span><button class="btn" style="display:inline-block;margin:0 4px" data-a="wdok" data-id="${esc(x.id)}">تم التحويل</button><button class="btn sec" style="display:inline-block;margin:0" data-a="wdno" data-id="${esc(x.id)}">رفض</button></span></div>`).join('') || '<div class="empty">لا يوجد</div>'}
   <hr><h3>المستخدمين والأدمنز</h3>
-  ${(u.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span dir="ltr">${esc(x.email)}</span><span>${x.role === 'owner' ? 'مالك' : x.role === 'admin' ? 'أدمن (محل)' : 'مستخدم'}</span>${x.role === 'owner' ? '<span></span>' : `<button class="btn sec" style="margin:0" data-a="role" data-id="${esc(x.id)}" data-r="${x.role === 'admin' ? 'user' : 'admin'}">${x.role === 'admin' ? 'شيل الأدمن' : 'اجعله أدمن'}</button>`}</div>`).join('')}`;
+  ${(u.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span><span dir="ltr">${esc(x.email)}</span><br><small style="color:var(--mu)">${esc(x.phone)} · ${esc(x.governorate)} · ${esc(x.area)}${x.shop_name ? ' · محل: ' + esc(x.shop_name) : ''}</small></span><span>${x.role === 'owner' ? 'مالك' : x.role === 'admin' ? 'أدمن (محل)' : 'مستخدم'}</span>${x.role === 'owner' ? '<span></span>' : `<button class="btn sec" style="margin:0" data-a="role" data-id="${esc(x.id)}" data-r="${x.role === 'admin' ? 'user' : 'admin'}">${x.role === 'admin' ? 'شيل الأدمن' : 'اجعله أدمن'}</button>`}</div>`).join('')}`;
 }
 
 async function importCsv() {
@@ -212,7 +233,7 @@ $('admin').onclick = e => {
 window.onhashchange = () => { shopId = SH(); render(); window.scrollTo(0, 0) };
 (async () => {
   const { data: { session } } = await sb.auth.getSession(); await setUser(session?.user);
-  sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') sb.auth.getSession().then(r => setUser(r.data.session?.user)) });
+  sb.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') authBox('newpw'); if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') sb.auth.getSession().then(r => setUser(r.data.session?.user)) });
 })();
 </script>
 </body>
