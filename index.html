@@ -57,8 +57,10 @@ const esc = s => { const d = document.createElement('div'); d.textContent = s ??
 const toast = m => { const t = $('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3500) };
 const normUrl = v => { v = (v || '').trim(); if (!v) return ''; if (!/^https?:\/\//i.test(v)) v = 'https://' + v; try { return new URL(v).href } catch (e) { return '' } };
 const SH = () => (location.hash.match(/^#shop-([0-9a-f-]{36})$/) || [])[1] || null;
-let shopId = SH(), me = null, role = 'user', cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
+let shopId = SH(), me = null, role = 'user', perm = {}, cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
 const isAdmin = () => role === 'admin' || role === 'owner', isOwner = () => role === 'owner';
+const has = k => isOwner() || !!perm[k], hasAny = () => has('can_categories') || has('can_withdrawals') || has('can_resets');
+const PERMS = [['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد']];
 const val = id => $(id).value.trim();
 async function act(p, ok) { const r = await p; if (r.error) { toast(r.error.message); return false } if (ok) toast(ok); await load(); return true }
 
@@ -76,8 +78,8 @@ async function load() {
   render(); renderBar(); await renderAdmin();
 }
 async function setUser(u) {
-  me = u || null; role = 'user';
-  if (me) role = (await sb.from('profiles').select('role').eq('id', me.id).maybeSingle()).data?.role || 'user';
+  me = u || null; role = 'user'; perm = {};
+  if (me) { const pr = (await sb.from('profiles').select('role,can_categories,can_withdrawals,can_resets').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
   await load();
 }
 
@@ -120,6 +122,7 @@ function renderBar() {
   else { b.innerHTML = `<button id="li">تسجيل الدخول</button><button id="su">حساب جديد</button>`; $('li').onclick = () => authBox('login'); $('su').onclick = () => authBox('signup') }
 }
 let resetEmail = '';
+const who = () => val('ae') || val('aph2').replace(/\s/g, '');
 const GOVS = ['القاهرة','الجيزة','الإسكندرية','القليوبية','الشرقية','الدقهلية','البحيرة','الغربية','المنوفية','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس','شمال سيناء','جنوب سيناء','الفيوم','بني سويف','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان','البحر الأحمر','الوادي الجديد','مطروح'];
 function authBox(mode) {
   const a = $('auth'); a.hidden = false;
@@ -129,8 +132,8 @@ function authBox(mode) {
   let f = '', go = 'دخول';
   if (mode === 'login') f = em + pw + '<a href="#" id="fg" style="color:var(--ac)">نسيت الباسورد؟</a>';
   if (mode === 'signup') { f = em + pw + `<input id="aph" type="tel" placeholder="رقم الموبايل 01xxxxxxxxx" dir="ltr"><select id="ag"><option value="">المحافظة</option>${GOVS.map(g => `<option>${g}</option>`).join('')}</select><input id="aa" placeholder="المنطقة">`; go = 'إنشاء الحساب' }
-  if (mode === 'forgotw') { f = `<input id="aw" placeholder="إيميلك أو رقم موبايلك" dir="ltr">`; go = 'ابعت الطلب على واتساب' }
-  if (mode === 'mycode') { f = `<input id="aw" placeholder="إيميلك أو رقم موبايلك" dir="ltr"><input id="ac" placeholder="الكود اللي بعتهولك المالك" dir="ltr">` + pw.replace('الباسورد', 'الباسورد الجديد'); go = 'تغيير الباسورد' }
+  if (mode === 'forgotw') { f = `<input id="ae" type="email" placeholder="الإيميل" dir="ltr"><input id="aph2" type="tel" placeholder="رقم الموبايل (اكتب إيميلك أو رقمك أو الاتنين)" dir="ltr">`; go = 'ابعت الطلب على واتساب' }
+  if (mode === 'mycode') { f = `<input id="ae" type="email" placeholder="الإيميل" dir="ltr"><input id="aph2" type="tel" placeholder="رقم الموبايل (اكتب إيميلك أو رقمك أو الاتنين)" dir="ltr"><input id="ac" placeholder="الكود اللي بعتهولك المالك" dir="ltr">` + pw.replace('الباسورد', 'الباسورد الجديد'); go = 'تغيير الباسورد' }
   if (mode === 'forgot') { f = em + `<input id="aph2" type="tel" placeholder="أو رقم موبايلك (لو مش قادر تفتح الإيميل)" dir="ltr">`; go = 'ابعت كود الاستعادة على الإيميل' }
   if (mode === 'code') { f = `<input id="ac" placeholder="الكود اللي وصلك على الإيميل" dir="ltr">` + pw.replace('الباسورد', 'الباسورد الجديد'); go = 'تغيير الباسورد' }
   if (mode === 'newpw') { f = pw.replace('الباسورد', 'الباسورد الجديد'); go = 'حفظ الباسورد الجديد' }
@@ -147,13 +150,13 @@ function authBox(mode) {
   $('ago').onclick = async () => {
     let r = {};
     if (mode === 'forgotw') {
-      if (!val('aw')) return toast('اكتب إيميلك أو رقم موبايلك');
+      if (!who()) return toast('اكتب إيميلك أو رقم موبايلك');
       if (!cfg.whatsapp) return toast('رقم الدعم غير متاح حالياً');
-      window.open('https://wa.me/' + cfg.whatsapp + '?text=' + encodeURIComponent('نسيت الباسورد. بياناتي: ' + val('aw')), '_blank');
+      window.open('https://wa.me/' + cfg.whatsapp + '?text=' + encodeURIComponent('نسيت الباسورد.\nالإيميل: ' + val('ae') + '\nالموبايل: ' + val('aph2')), '_blank');
       return authBox('mycode');
     }
     if (mode === 'mycode') {
-      const { data, error } = await sb.rpc('reset_with_code', { p_who: val('aw'), p_code: val('ac'), p_new: $('ap').value });
+      const { data, error } = await sb.rpc('reset_with_code', { p_who: who(), p_code: val('ac'), p_new: $('ap').value });
       if (error) return toast(error.message);
       if (data !== 'ok') return toast(data);
       toast('تم تغيير الباسورد، سجّل دخول بيه'); return authBox('login');
@@ -187,7 +190,7 @@ async function renderAdmin() {
   <details style="margin-top:10px"><summary style="cursor:pointer">استيراد منتجات كتير من ملف CSV</summary><p style="color:var(--mu);margin:8px 0">الأعمدة بالترتيب: الاسم، السعر، القسم (مطابق لاسم قسم موجود)، رابط الصورة (اختياري). الرسوم بتتخصم على كل منتج.</p><input id="csv" type="file" accept=".csv"><button class="btn" data-a="csv" type="button" style="margin-top:8px">استيراد</button></details>
   <hr><h3>سحب الرصيد</h3>
   <div class="row"><input id="wa" type="number" min="1" placeholder="المبلغ"><select id="wm"><option>إنستا باي</option><option>فودافون كاش</option><option>محفظة إلكترونية أخرى</option></select><input id="wn" placeholder="رقم الحساب أو المحفظة" dir="ltr"><button class="btn" data-a="wd" type="button">طلب سحب</button></div>
-  ${isOwner() ? '<div id="own"></div>' : ''}`;
+  ${hasAny() ? '<div id="own"></div>' : ''}`;
   $('f').onsubmit = async e => {
     e.preventDefault(); let img = ''; const file = $('ff').files[0];
     if (file) {
@@ -198,13 +201,13 @@ async function renderAdmin() {
     }
     act(sb.rpc('publish_product', { p_name: val('fn'), p_price: Number(val('fp')), p_cat: $('fc').value, p_img: img }), 'تم نشر المنتج');
   };
-  if (isOwner()) renderOwner();
+  if (hasAny()) renderOwner();
 }
 
 async function renderOwner() {
   const [u, w, t] = await Promise.all([sb.from('profiles').select('*').order('email'), sb.from('withdrawals').select('*').eq('status', 'pending').order('created_at'), sb.from('wallet_tx').select('amount').eq('kind', 'listing_fee')]);
   const comm = -(t.data || []).reduce((s, x) => s + Number(x.amount), 0);
-  $('own').innerHTML = `<hr><h2>أدوات المالك</h2><p><b>إجمالي عمولاتك: ${comm} ج.م</b></p>
+  const full = `<hr><h2>أدوات المالك</h2><p><b>إجمالي عمولاتك: ${comm} ج.م</b></p>
   <h3>الشكل والإعدادات</h3>
   <div class="row"><input id="cn" placeholder="اسم المتجر" value="${esc(cfg.store_name)}"><input id="cw" placeholder="واتساب المتجر" dir="ltr" value="${esc(cfg.whatsapp)}"><input id="ce" placeholder="الإيميل" dir="ltr" value="${esc(cfg.email)}"><input id="cf" type="number" min="0" placeholder="رسوم نشر المنتج" value="${cfg.listing_fee ?? 0}"><input id="pn" placeholder="رقم استلام التحويلات (إنستا باي / فودافون كاش)" dir="ltr" value="${esc(cfg.pay_number)}"><input id="pi" placeholder="تعليمات التحويل (مثال: إنستا باي باسم ...)" value="${esc(cfg.pay_info)}"></div>
   <div class="row" style="margin-top:8px"><label>اللون الأساسي <input id="cp" type="color" value="${cfg.primary_color || '#b4532a'}"></label><label>لون الخلفية <input id="cb" type="color" value="${cfg.bg_color || '#faf7f2'}"></label></div>
@@ -219,7 +222,10 @@ async function renderOwner() {
   <hr><h3>طلبات السحب المعلقة</h3>
   ${(w.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span dir="ltr">${esc(x.email)}</span><span>${x.amount} ج.م · ${esc(x.method)} · <span dir="ltr">${esc(x.account)}</span></span><span><button class="btn" style="display:inline-block;margin:0 4px" data-a="wdok" data-id="${esc(x.id)}">تم التحويل</button><button class="btn sec" style="display:inline-block;margin:0" data-a="wdno" data-id="${esc(x.id)}">رفض</button></span></div>`).join('') || '<div class="empty">لا يوجد</div>'}
   <hr><h3>المستخدمين والأدمنز</h3>
-  ${(u.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span><span dir="ltr">${esc(x.email)}</span><br><small style="color:var(--mu)">${esc(x.phone)} · ${esc(x.governorate)} · ${esc(x.area)}${x.shop_name ? ' · محل: ' + esc(x.shop_name) : ''}</small></span><span>${x.role === 'owner' ? 'مالك' : x.role === 'admin' ? 'أدمن (محل)' : 'مستخدم'}</span>${x.role === 'owner' ? '<span></span>' : `<button class="btn sec" style="margin:0" data-a="role" data-id="${esc(x.id)}" data-r="${x.role === 'admin' ? 'user' : 'admin'}">${x.role === 'admin' ? 'شيل الأدمن' : 'اجعله أدمن'}</button>`}</div>`).join('')}`;
+  ${(u.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span><span dir="ltr">${esc(x.email)}</span><br><small style="color:var(--mu)">${esc(x.phone)} · ${esc(x.governorate)} · ${esc(x.area)}${x.shop_name ? ' · محل: ' + esc(x.shop_name) : ''}</small>${x.role === 'owner' ? '' : '<br>' + PERMS.map(([k, n]) => `<button class="btn sec" style="display:inline-block;margin:4px 4px 0 0;padding:2px 10px;font-size:.8rem${x[k] ? ';background:var(--ac);color:var(--acx)' : ''}" data-a="perm" data-id="${esc(x.id)}" data-k="${k}" data-v="${!x[k]}">${n}</button>`).join('')}</span><span>${x.role === 'owner' ? 'مالك' : x.role === 'admin' ? 'أدمن (محل)' : 'مستخدم'}</span>${x.role === 'owner' ? '<span></span>' : `<button class="btn sec" style="margin:0" data-a="role" data-id="${esc(x.id)}" data-r="${x.role === 'admin' ? 'user' : 'admin'}">${x.role === 'admin' ? 'شيل الأدمن' : 'اجعله أدمن'}</button>`}</div>`).join('')}`;
+  const ok = [0, isOwner(), has('can_categories'), isOwner(), has('can_resets'), has('can_withdrawals'), isOwner()];
+  const parts = full.split('<hr>');
+  $('own').innerHTML = (isOwner() ? '' : '<hr><h2>أدوات الموظف</h2>') + parts.filter((p, i) => i > 0 && ok[i]).map(p => '<hr>' + p).join('');
 }
 
 async function importCsv() {
@@ -251,6 +257,7 @@ $('admin').onclick = e => {
   if (d.a === 'wdok') act(sb.rpc('mark_withdrawal', { p_id: d.id, p_status: 'paid' }), 'تم');
   if (d.a === 'wdno') act(sb.rpc('mark_withdrawal', { p_id: d.id, p_status: 'rejected' }), 'تم الرفض ورجوع الرصيد');
   if (d.a === 'csv') importCsv();
+  if (d.a === 'perm') act(sb.from('profiles').update({ [d.k]: d.v === 'true' }).eq('id', d.id), 'تم تعديل الصلاحية');
   if (d.a === 'mkcode') (async () => {
     const { data, error } = await sb.rpc('owner_make_reset_code', { p_who: val('rw') });
     if (error) return toast(error.message);
