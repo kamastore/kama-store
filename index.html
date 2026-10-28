@@ -59,8 +59,8 @@ const normUrl = v => { v = (v || '').trim(); if (!v) return ''; if (!/^https?:\/
 const SH = () => (location.hash.match(/^#shop-([0-9a-f-]{36})$/) || [])[1] || null;
 let shopId = SH(), me = null, role = 'user', perm = {}, cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
 const isAdmin = () => role === 'admin' || role === 'owner', isOwner = () => role === 'owner';
-const has = k => isOwner() || !!perm[k], hasAny = () => has('can_categories') || has('can_withdrawals') || has('can_resets');
-const PERMS = [['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد']];
+const has = k => isOwner() || !!perm[k], hasAny = () => has('can_categories') || has('can_withdrawals') || has('can_resets'), showPanel = () => isOwner() || (role === 'admin' && (!!perm.can_panel || hasAny()));
+const PERMS = [['can_panel', 'لوحة'], ['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد']];
 const val = id => $(id).value.trim();
 async function act(p, ok) { const r = await p; if (r.error) { toast(r.error.message); return false } if (ok) toast(ok); await load(); return true }
 
@@ -79,7 +79,7 @@ async function load() {
 }
 async function setUser(u) {
   me = u || null; role = 'user'; perm = {};
-  if (me) { const pr = (await sb.from('profiles').select('role,can_categories,can_withdrawals,can_resets').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
+  if (me) { const pr = (await sb.from('profiles').select('role,can_panel,can_categories,can_withdrawals,can_resets').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
   await load();
 }
 
@@ -177,9 +177,9 @@ function authBox(mode) {
 }
 
 async function renderAdmin() {
-  const a = $('admin'); a.hidden = !isAdmin();
-  if (!isAdmin()) { a.innerHTML = ''; return }
-  a.innerHTML = `<h2>لوحة التحكم</h2>
+  const a = $('admin'); a.hidden = !showPanel();
+  if (!showPanel()) { a.innerHTML = ''; return }
+  const shopHtml = `
   <div class="row"><b>رصيدك: ${bal} ج.م</b><span>رسوم نشر المنتج: ${cfg.listing_fee ?? 0} ج.م</span></div>
   ${cfg.pay_number ? `<div class="row" style="margin-top:8px;align-items:center"><span>لشحن رصيدك حوّل على: <b dir="ltr">${esc(cfg.pay_number)}</b> ${esc(cfg.pay_info)}</span><button class="btn sec" style="margin:0" type="button" onclick="navigator.clipboard.writeText('${esc(cfg.pay_number)}');toast('تم نسخ الرقم')">نسخ الرقم</button><a class="btn" style="margin:0" target="_blank" rel="noopener" href="https://wa.me/${esc(cfg.whatsapp)}?text=${encodeURIComponent('حولت مبلغ لشحن رصيد محلي: ' + (shop.shop_name || me.email))}">ابعت إثبات التحويل</a></div>` : ''}
   <hr><h3>بيانات محلك (بتظهر على منتجاتك)</h3>
@@ -189,9 +189,9 @@ async function renderAdmin() {
   <form id="f"><input id="fn" placeholder="اسم المنتج" required><input id="fp" type="number" min="0" placeholder="السعر" required><select id="fc">${cats.map(c => `<option>${esc(c.name)}</option>`).join('')}</select><input id="ff" type="file" accept="image/*"><button class="btn" type="submit">نشر المنتج</button></form>
   <details style="margin-top:10px"><summary style="cursor:pointer">استيراد منتجات كتير من ملف CSV</summary><p style="color:var(--mu);margin:8px 0">الأعمدة بالترتيب: الاسم، السعر، القسم (مطابق لاسم قسم موجود)، رابط الصورة (اختياري). الرسوم بتتخصم على كل منتج.</p><input id="csv" type="file" accept=".csv"><button class="btn" data-a="csv" type="button" style="margin-top:8px">استيراد</button></details>
   <hr><h3>سحب الرصيد</h3>
-  <div class="row"><input id="wa" type="number" min="1" placeholder="المبلغ"><select id="wm"><option>إنستا باي</option><option>فودافون كاش</option><option>محفظة إلكترونية أخرى</option></select><input id="wn" placeholder="رقم الحساب أو المحفظة" dir="ltr"><button class="btn" data-a="wd" type="button">طلب سحب</button></div>
-  ${hasAny() ? '<div id="own"></div>' : ''}`;
-  $('f').onsubmit = async e => {
+  <div class="row"><input id="wa" type="number" min="1" placeholder="المبلغ"><select id="wm"><option>إنستا باي</option><option>فودافون كاش</option><option>محفظة إلكترونية أخرى</option></select><input id="wn" placeholder="رقم الحساب أو المحفظة" dir="ltr"><button class="btn" data-a="wd" type="button">طلب سحب</button></div>`;
+  a.innerHTML = '<h2>لوحة التحكم</h2>' + (has('can_panel') ? shopHtml : '') + (hasAny() ? '<div id="own"></div>' : '');
+  if ($('f')) $('f').onsubmit = async e => {
     e.preventDefault(); let img = ''; const file = $('ff').files[0];
     if (file) {
       const path = Date.now() + '.' + (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
