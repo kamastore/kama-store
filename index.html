@@ -93,7 +93,7 @@ function render() {
   const names = ['الكل', ...cats.map(c => c.name)];
   $('tabs').innerHTML = names.map(c => `<button class="${c === cur ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => { cur = b.dataset.c; render() });
-  const inCat = !shopId && cur !== 'الكل';
+  const inCat = false;
   const shops = {}; prods.forEach(p => { if (p.seller_id && p.shop_name) shops[p.seller_id] = p.shop_name });
   $('shops').innerHTML = shopId
     ? `<div style="text-align:center;margin-bottom:14px"><h2 style="margin:0">${esc(shops[shopId] || 'محل')}</h2><a href="#" style="color:var(--ac)">← ${cur === 'الكل' ? 'كل المحلات' : 'محلات ' + esc(cur)}</a> · <a href="#shop-${shopId}" style="color:var(--ac)" onclick="navigator.clipboard.writeText(location.origin+location.pathname+'#shop-${shopId}');toast('تم نسخ رابط المحل')">نسخ رابط المحل</a></div>`
@@ -105,7 +105,7 @@ function render() {
     const msg = encodeURIComponent('أهلاً، عايز أسأل عن: ' + p.name + ' (' + p.price + ' ج.م)');
     const btn = wa ? `<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${msg}">تواصل مع المحل</a>` : '';
     const del = me && (isOwner() || p.seller_id === me.id) ? `<button class="btn sec" data-del="${esc(p.id)}">حذف</button>` : '';
-    return `<div class="card"><div class="ph">${img}</div><div class="info"><span class="cat">${esc(p.category)}${p.seller_id && p.shop_name ? ' · <a href="#shop-' + esc(p.seller_id) + '" style="color:inherit">' + esc(p.shop_name) + '</a>' : ''}</span><h3>${esc(p.name)}</h3><span class="price">${esc(String(p.price))} ج.م</span>${btn}${del}</div></div>`;
+    return `<div class="card"><div class="ph">${img}</div><div class="info"><span class="cat">${esc(p.category)}</span><h3>${esc(p.name)}</h3><span class="price">${esc(String(p.price))} ج.م</span><span class="cat">🏬 ${p.seller_id ? '<a href="#shop-' + esc(p.seller_id) + '" style="color:inherit">' + esc(p.shop_name || cfg.store_name || 'Kama Store') + '</a>' : esc(p.shop_name || cfg.store_name || 'Kama Store')}</span>${btn}${del}</div></div>`;
   }).join('') : (inCat ? '' : '<div class="empty">مفيش منتجات في القسم ده لسه</div>');
   $('grid').querySelectorAll('[data-del]').forEach(b => b.onclick = () => confirm('تحذف المنتج؟') && act(sb.from('products').delete().eq('id', b.dataset.del)));
   const l = Object.entries(SOC).filter(([k]) => cfg[k]).map(([k, n]) => `<a href="${esc(cfg[k])}" target="_blank" rel="noopener">${n}</a>`);
@@ -141,6 +141,7 @@ async function renderAdmin() {
   <div class="row" style="margin-top:8px"><a class="btn sec" style="margin:0" href="#shop-${me.id}">فتح صفحة محلي</a><button class="btn sec" style="margin:0" type="button" onclick="navigator.clipboard.writeText(location.origin+location.pathname+'#shop-${me.id}');toast('تم نسخ رابط محلك')">نسخ رابط محلي</button></div>
   <hr><h3>إضافة منتج</h3>
   <form id="f"><input id="fn" placeholder="اسم المنتج" required><input id="fp" type="number" min="0" placeholder="السعر" required><select id="fc">${cats.map(c => `<option>${esc(c.name)}</option>`).join('')}</select><input id="ff" type="file" accept="image/*"><button class="btn" type="submit">نشر المنتج</button></form>
+  <details style="margin-top:10px"><summary style="cursor:pointer">استيراد منتجات كتير من ملف CSV</summary><p style="color:var(--mu);margin:8px 0">الأعمدة بالترتيب: الاسم، السعر، القسم (مطابق لاسم قسم موجود)، رابط الصورة (اختياري). الرسوم بتتخصم على كل منتج.</p><input id="csv" type="file" accept=".csv"><button class="btn" data-a="csv" type="button" style="margin-top:8px">استيراد</button></details>
   <hr><h3>سحب الرصيد</h3>
   <div class="row"><input id="wa" type="number" min="1" placeholder="المبلغ"><select id="wm"><option>إنستا باي</option><option>فودافون كاش</option><option>محفظة إلكترونية أخرى</option></select><input id="wn" placeholder="رقم الحساب أو المحفظة" dir="ltr"><button class="btn" data-a="wd" type="button">طلب سحب</button></div>
   ${isOwner() ? '<div id="own"></div>' : ''}`;
@@ -176,6 +177,24 @@ async function renderOwner() {
   ${(u.data || []).map(x => `<div class="row" style="align-items:center;margin-bottom:6px"><span dir="ltr">${esc(x.email)}</span><span>${x.role === 'owner' ? 'مالك' : x.role === 'admin' ? 'أدمن (محل)' : 'مستخدم'}</span>${x.role === 'owner' ? '<span></span>' : `<button class="btn sec" style="margin:0" data-a="role" data-id="${esc(x.id)}" data-r="${x.role === 'admin' ? 'user' : 'admin'}">${x.role === 'admin' ? 'شيل الأدمن' : 'اجعله أدمن'}</button>`}</div>`).join('')}`;
 }
 
+async function importCsv() {
+  const f = $('csv').files[0]; if (!f) return toast('اختار ملف CSV الأول');
+  let rows = (await f.text()).replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.split(',').map(x => x.trim().replace(/^"|"$/g, ''))).filter(r => r[0]);
+  if (rows.length && /^(name|الاسم)/i.test(rows[0][0])) rows.shift();
+  const names = cats.map(c => c.name);
+  const ok = rows.filter(r => Number(r[1]) >= 0 && r[1] !== '' && names.includes(r[2])).slice(0, 200);
+  if (!ok.length) return toast('مفيش صفوف صالحة، راجع الأعمدة وأسماء الأقسام');
+  const fee = Number(cfg.listing_fee || 0);
+  if (!isOwner() && bal < fee * ok.length) return toast('الرصيد مش كافي، المطلوب ' + fee * ok.length + ' ج.م');
+  if (!confirm('هتنشر ' + ok.length + ' منتج (تم تجاهل ' + (rows.length - ok.length) + ' صف غير صالح). تكمل؟')) return;
+  let n = 0;
+  for (const r of ok) {
+    const img = /^https?:\/\//i.test(r[3] || '') ? r[3] : '';
+    const { error } = await sb.rpc('publish_product', { p_name: r[0], p_price: Number(r[1]), p_cat: r[2], p_img: img });
+    if (error) { toast(error.message); break } n++;
+  }
+  toast('تم نشر ' + n + ' منتج'); load();
+}
 $('admin').onclick = e => {
   const b = e.target.closest('[data-a]'); if (!b) return; const d = b.dataset;
   if (d.a === 'shop') act(sb.rpc('set_shop', { p_name: val('shn'), p_wa: val('shw') }), 'تم الحفظ');
@@ -186,6 +205,7 @@ $('admin').onclick = e => {
   if (d.a === 'credit') act(sb.rpc('owner_credit', { p_email: val('ke'), p_amount: Number(val('ka')), p_note: 'شحن رصيد' }), 'تم الشحن');
   if (d.a === 'wdok') act(sb.rpc('mark_withdrawal', { p_id: d.id, p_status: 'paid' }), 'تم');
   if (d.a === 'wdno') act(sb.rpc('mark_withdrawal', { p_id: d.id, p_status: 'rejected' }), 'تم الرفض ورجوع الرصيد');
+  if (d.a === 'csv') importCsv();
   if (d.a === 'role') act(sb.from('profiles').update({ role: d.r }).eq('id', d.id), 'تم التعديل');
 };
 
