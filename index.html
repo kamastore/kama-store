@@ -135,6 +135,7 @@ async function renderAdmin() {
   if (!isAdmin()) { a.innerHTML = ''; return }
   a.innerHTML = `<h2>لوحة التحكم</h2>
   <div class="row"><b>رصيدك: ${bal} ج.م</b><span>رسوم نشر المنتج: ${cfg.listing_fee ?? 0} ج.م</span></div>
+  ${cfg.pay_number ? `<div class="row" style="margin-top:8px;align-items:center"><span>لشحن رصيدك حوّل على: <b dir="ltr">${esc(cfg.pay_number)}</b> ${esc(cfg.pay_info)}</span><button class="btn sec" style="margin:0" type="button" onclick="navigator.clipboard.writeText('${esc(cfg.pay_number)}');toast('تم نسخ الرقم')">نسخ الرقم</button><a class="btn" style="margin:0" target="_blank" rel="noopener" href="https://wa.me/${esc(cfg.whatsapp)}?text=${encodeURIComponent('حولت مبلغ لشحن رصيد محلي: ' + (shop.shop_name || me.email))}">ابعت إثبات التحويل</a></div>` : ''}
   <hr><h3>بيانات محلك (بتظهر على منتجاتك)</h3>
   <div class="row"><input id="shn" placeholder="اسم المحل" value="${esc(shop.shop_name)}"><input id="shw" placeholder="واتساب المحل 201xxxxxxxxx" dir="ltr" value="${esc(shop.whatsapp)}"><button class="btn" data-a="shop" type="button">حفظ</button></div>
   <div class="row" style="margin-top:8px"><a class="btn sec" style="margin:0" href="#shop-${me.id}">فتح صفحة محلي</a><button class="btn sec" style="margin:0" type="button" onclick="navigator.clipboard.writeText(location.origin+location.pathname+'#shop-${me.id}');toast('تم نسخ رابط محلك')">نسخ رابط محلي</button></div>
@@ -161,7 +162,7 @@ async function renderOwner() {
   const comm = -(t.data || []).reduce((s, x) => s + Number(x.amount), 0);
   $('own').innerHTML = `<hr><h2>أدوات المالك</h2><p><b>إجمالي عمولاتك: ${comm} ج.م</b></p>
   <h3>الشكل والإعدادات</h3>
-  <div class="row"><input id="cn" placeholder="اسم المتجر" value="${esc(cfg.store_name)}"><input id="cw" placeholder="واتساب المتجر" dir="ltr" value="${esc(cfg.whatsapp)}"><input id="ce" placeholder="الإيميل" dir="ltr" value="${esc(cfg.email)}"><input id="cf" type="number" min="0" placeholder="رسوم نشر المنتج" value="${cfg.listing_fee ?? 0}"></div>
+  <div class="row"><input id="cn" placeholder="اسم المتجر" value="${esc(cfg.store_name)}"><input id="cw" placeholder="واتساب المتجر" dir="ltr" value="${esc(cfg.whatsapp)}"><input id="ce" placeholder="الإيميل" dir="ltr" value="${esc(cfg.email)}"><input id="cf" type="number" min="0" placeholder="رسوم نشر المنتج" value="${cfg.listing_fee ?? 0}"><input id="pn" placeholder="رقم استلام التحويلات (إنستا باي / فودافون كاش)" dir="ltr" value="${esc(cfg.pay_number)}"><input id="pi" placeholder="تعليمات التحويل (مثال: إنستا باي باسم ...)" value="${esc(cfg.pay_info)}"></div>
   <div class="row" style="margin-top:8px"><label>اللون الأساسي <input id="cp" type="color" value="${cfg.primary_color || '#b4532a'}"></label><label>لون الخلفية <input id="cb" type="color" value="${cfg.bg_color || '#faf7f2'}"></label></div>
   <div class="row" style="margin-top:8px">${Object.keys(SOC).map(k => `<input id="so_${k}" placeholder="رابط ${SOC[k]}" dir="ltr" value="${esc(cfg[k])}">`).join('')}</div>
   <button class="btn" data-a="cfg" type="button" style="margin-top:8px">حفظ الإعدادات</button>
@@ -179,7 +180,7 @@ $('admin').onclick = e => {
   const b = e.target.closest('[data-a]'); if (!b) return; const d = b.dataset;
   if (d.a === 'shop') act(sb.rpc('set_shop', { p_name: val('shn'), p_wa: val('shw') }), 'تم الحفظ');
   if (d.a === 'wd') act(sb.rpc('request_withdraw', { p_amount: Number(val('wa')), p_method: $('wm').value, p_account: val('wn') }), 'تم إرسال طلب السحب');
-  if (d.a === 'cfg') { const row = { store_name: val('cn'), whatsapp: val('cw').replace(/\D/g, ''), email: val('ce'), listing_fee: Number(val('cf')), primary_color: $('cp').value, bg_color: $('cb').value }; Object.keys(SOC).forEach(k => row[k] = normUrl(val('so_' + k))); act(sb.from('settings').update(row).eq('id', 1), 'تم الحفظ') }
+  if (d.a === 'cfg') { const row = { store_name: val('cn'), whatsapp: val('cw').replace(/\D/g, ''), email: val('ce'), listing_fee: Number(val('cf')), pay_number: val('pn').replace(/[^\d+]/g, ''), pay_info: val('pi'), primary_color: $('cp').value, bg_color: $('cb').value }; Object.keys(SOC).forEach(k => row[k] = normUrl(val('so_' + k))); act(sb.from('settings').update(row).eq('id', 1), 'تم الحفظ') }
   if (d.a === 'catadd' && val('nc')) act(sb.from('categories').insert({ name: val('nc'), sort: cats.length + 1 }), 'تمت الإضافة');
   if (d.a === 'catdel' && confirm('تحذف القسم؟')) act(sb.from('categories').delete().eq('id', d.id));
   if (d.a === 'credit') act(sb.rpc('owner_credit', { p_email: val('ke'), p_amount: Number(val('ka')), p_note: 'شحن رصيد' }), 'تم الشحن');
