@@ -81,7 +81,7 @@ async function load() {
 }
 async function setUser(u) {
   me = u || null; role = 'user'; perm = {};
-  if (me) { const pr = (await sb.from('profiles').select('role,can_panel,can_categories,can_withdrawals,can_resets,can_chat').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
+  if (me) { const pr = (await sb.from('profiles').select('*').eq('id', me.id).maybeSingle()).data || {}; role = pr.role || 'user'; perm = pr }
   await load();
 }
 
