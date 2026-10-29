@@ -37,12 +37,12 @@ header p{margin:6px 0 0;color:var(--mu)}
 #admin hr{border:0;border-top:1px solid var(--bd);margin:14px 0}
 footer{text-align:center;padding:24px 16px 40px;border-top:1px solid var(--bd);color:var(--mu)}footer:empty{display:none}footer p{margin:0 0 10px}.soc{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.soc a{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;text-decoration:none}.soc a:hover{background:var(--ac);color:var(--acx);border-color:var(--ac)}
 #toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 18px;border-radius:99px;display:none}
-#auth h2{margin:0 0 10px;font-size:1.1rem}#auth .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#auth input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#auth select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#bar{align-items:center}#bar button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;font:inherit;cursor:pointer}#admin h3{margin:10px 0 8px;font-size:1rem}#admin label{display:flex;gap:8px;align-items:center}#admin input[type=color]{width:56px;padding:2px;height:36px}#chat{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom,0px));left:12px;width:min(380px,calc(100vw - 24px));height:440px;background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;z-index:20;box-shadow:0 8px 30px #0003}#chat[hidden]{display:none}.ch-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd)}.ch-h button{border:0;background:none;color:var(--tx);font-size:1.1rem;cursor:pointer}.ch-b{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:6px}.msg{max-width:80%;padding:8px 12px;border-radius:12px;background:var(--bd);align-self:flex-start;word-break:break-word}.msg.me{background:var(--ac);color:var(--acx);align-self:flex-end}.ch-f{display:flex;gap:8px;padding:10px;border-top:1px solid var(--bd)}.ch-f input{flex:1;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}</style>
+#auth h2{margin:0 0 10px;font-size:1.1rem}#auth .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}#auth input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#auth select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#bar{align-items:center}#bar button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 16px;border-radius:99px;font:inherit;cursor:pointer}#admin h3{margin:10px 0 8px;font-size:1rem}#admin label{display:flex;gap:8px;align-items:center}#admin input[type=color]{width:56px;padding:2px;height:36px}#chat{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom,0px));left:12px;width:min(380px,calc(100vw - 24px));height:440px;background:var(--card);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;z-index:20;box-shadow:0 8px 30px #0003}#chat[hidden]{display:none}.ch-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd)}.ch-h button{border:0;background:none;color:var(--tx);font-size:1.1rem;cursor:pointer}.ch-b{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:6px}.msg{max-width:80%;padding:8px 12px;border-radius:12px;background:var(--bd);align-self:flex-start;word-break:break-word}.msg.me{background:var(--ac);color:var(--acx);align-self:flex-end}.ch-f{display:flex;gap:8px;padding:10px;border-top:1px solid var(--bd)}.ch-f input{flex:1;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#uv{background:var(--card);border:1px dashed var(--ac);border-radius:14px;padding:16px;margin-bottom:24px}#uv input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#uv .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}</style>
 </head>
 <body>
 <header><h1 id="sname" dir="auto"></h1><p>ملابس ومنتجات مختارة بعناية</p></header>
 <div class="wrap">
-    <div id="bar" class="tabs"></div><div id="auth" hidden style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px"></div><div id="admin" hidden></div><div id="shops"></div><div class="tabs" id="tabs"></div>
+    <div id="bar" class="tabs"></div><div id="auth" hidden style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px"></div><div id="uv" hidden></div><div id="admin" hidden></div><div id="shops"></div><div class="tabs" id="tabs"></div>
   <div class="grid" id="grid"></div>
 </div>
 <footer id="foot"></footer>
@@ -61,7 +61,7 @@ const SH = () => (location.hash.match(/^#shop-([0-9a-f-]{36})$/) || [])[1] || nu
 let shopId = SH(), me = null, role = 'user', perm = {}, cfg = {}, prods = [], cats = [], cur = 'الكل', bal = 0, shop = {};
 const isAdmin = () => role === 'admin' || role === 'owner', isOwner = () => role === 'owner';
 const has = k => isOwner() || !!perm[k], hasAny = () => has('can_categories') || has('can_withdrawals') || has('can_resets'), canSeeAny = () => isOwner() || hasAny() || (role === 'admin' && !!perm.can_panel), showPanel = () => isOwner() || (role === 'admin' && (!!perm.can_panel || hasAny()));
-const PERMS = [['can_panel', 'لوحة'], ['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد'], ['can_chat', 'دردشة']];
+const PERMS = [['can_panel', 'لوحة'], ['can_categories', 'أقسام'], ['can_withdrawals', 'سحب'], ['can_resets', 'أكواد'], ['can_chat', 'دردشة'], ['can_users', 'مستخدمين']];
 const val = id => $(id).value.trim();
 async function act(p, ok) { const r = await p; if (r.error) { toast(r.error.message); return false } if (ok) toast(ok); await load(); return true }
 
@@ -130,7 +130,8 @@ function render() {
 
 function renderBar() {
   const b = $('bar');
-  if (me) { b.innerHTML = `<span style="color:var(--mu)">${esc(me.email)} ${role !== 'user' ? '(' + (isOwner() ? 'مالك' : 'أدمن') + ')' : ''}</span>${role === 'user' || has('can_chat') ? '<button id="inb">رسائلي</button>' : ''}<button id="lo">خروج</button>`; $('lo').onclick = () => sb.auth.signOut(); if ($('inb')) $('inb').onclick = openInbox }
+  if (!has('can_users')) $('uv').hidden = true;
+  if (me) { b.innerHTML = `<span style="color:var(--mu)">${esc(me.email)} ${role !== 'user' ? '(' + (isOwner() ? 'مالك' : 'أدمن') + ')' : ''}</span>${has('can_users') ? '<button id="ubtn">المستخدمين</button>' : ''}${role === 'user' || has('can_chat') ? '<button id="inb">رسائلي</button>' : ''}<button id="lo">خروج</button>`; $('lo').onclick = () => sb.auth.signOut(); if ($('inb')) $('inb').onclick = openInbox; if ($('ubtn')) $('ubtn').onclick = openUsers }
   else { b.innerHTML = `<button id="li">تسجيل الدخول</button><button id="su">حساب جديد</button>`; $('li').onclick = () => authBox('login'); $('su').onclick = () => authBox('signup') }
 }
 let chatKey = null, chatTimer = null, ownerId = null, privMap = {}, shopInfo = {};
@@ -170,6 +171,36 @@ async function openInbox() {
   const { data } = await sb.rpc('track_visit', { p_new: isNew });
   if (data != null) $('vis').textContent = 'عدد الزيارات: ' + Number(data).toLocaleString('ar-EG');
 })();
+let uvData = [];
+async function openUsers() {
+  const { data, error } = await sb.from('profiles').select('*').order('email').limit(2000);
+  if (error) return toast(error.message);
+  uvData = data || []; const u = $('uv'); u.hidden = false;
+  u.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">المستخدمين <small id="uvc" style="color:var(--mu)"></small></h2><button id="uvx" class="btn sec" style="margin:0;width:auto;padding:4px 14px">إغلاق</button></div><input id="uvq" placeholder="ابحث بالإيميل أو رقم الموبايل أو المحافظة أو المنطقة أو اسم المحل" style="margin:10px 0"><div id="uvt" style="margin-bottom:10px"></div><div id="uvr"></div>`;
+  $('uvq').oninput = drawRows; drawRows(); window.scrollTo(0, 0);
+}
+function drawRows() {
+  const n = v => String(v || '').toLowerCase().replace(/\s/g, ''), q = n($('uvq').value);
+  const list = uvData.filter(x => !q || [x.email, x.phone, x.shop_name, x.governorate, x.area].some(v => n(v).includes(q)));
+  $('uvc').textContent = `(${list.length} من ${uvData.length})`;
+  $('uvr').innerHTML = list.map(x => `<div class="row" style="align-items:center;margin-bottom:10px;border-bottom:1px solid var(--bd);padding-bottom:8px"><span><span dir="ltr">${esc(x.email)}</span><br><small style="color:var(--mu)"><span dir="ltr">${esc(x.phone)}</span> · ${esc(x.governorate)} · ${esc(x.area)}${x.shop_name ? ' · محل: ' + esc(x.shop_name) : ''}</small></span><span>${x.role === 'owner' ? 'مالك' : x.role === 'admin' ? 'أدمن' : 'مستخدم'}</span>${x.role === 'owner' || !isOwner() ? '<span></span>' : `<span><button class="btn sec" style="display:inline-block;margin:0 4px 4px 0" data-a="role" data-id="${esc(x.id)}" data-r="${x.role === 'admin' ? 'user' : 'admin'}">${x.role === 'admin' ? 'شيل الأدمن' : 'اجعله أدمن'}</button>${PERMS.map(([k, nm]) => `<button class="btn sec" style="display:inline-block;margin:0 4px 4px 0;padding:2px 10px;font-size:.8rem${x[k] ? ';background:var(--ac);color:var(--acx)' : ''}" data-a="perm" data-id="${esc(x.id)}" data-k="${k}" data-v="${!x[k]}">${nm}</button>`).join('')}<button class="btn sec" style="display:inline-block;margin:0 4px 4px 0" data-a="tmp" data-id="${esc(x.id)}">باسورد مؤقت</button></span>`}</div>`).join('') || '<div class="empty">مفيش نتايج</div>';
+}
+$('uv').onclick = async e => {
+  const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+  if (b.id === 'uvx') { $('uv').hidden = true; return }
+  const x = uvData.find(u => u.id === d.id);
+  if (d.a === 'role' || d.a === 'perm') {
+    const patch = d.a === 'role' ? { role: d.r } : { [d.k]: d.v === 'true' };
+    const { error } = await sb.from('profiles').update(patch).eq('id', d.id);
+    if (error) return toast(error.message); Object.assign(x, patch); drawRows(); toast('تم التعديل');
+  }
+  if (d.a === 'tmp') {
+    if (!confirm('هتغيّر باسورد ' + x.email + ' لباسورد مؤقت جديد. تكمل؟')) return;
+    const { data, error } = await sb.rpc('owner_set_temp_password', { p_user: d.id });
+    if (error) return toast(error.message);
+    $('uvt').innerHTML = `باسورد مؤقت لـ <b dir="ltr">${esc(x.email)}</b>: <b dir="ltr" style="font-size:1.2rem">${esc(data)}</b> (بيظهر مرة واحدة بس) ${x.phone ? `<a class="btn" style="display:inline-block;margin:0 8px" target="_blank" rel="noopener" href="https://wa.me/20${esc(x.phone.slice(1))}?text=${encodeURIComponent('الباسورد المؤقت بتاعك: ' + data + ' — غيّره بعد ما تدخل')}">ابعته على واتساب</a>` : ''}`;
+  }
+};
 let resetEmail = '';
 const who = () => val('ae') || val('aph2').replace(/\s/g, '');
 const GOVS = ['القاهرة','الجيزة','الإسكندرية','القليوبية','الشرقية','الدقهلية','البحيرة','الغربية','المنوفية','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس','شمال سيناء','جنوب سيناء','الفيوم','بني سويف','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان','البحر الأحمر','الوادي الجديد','مطروح'];
