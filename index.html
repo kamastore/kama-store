@@ -304,13 +304,17 @@ $('uv').onclick = async e => {
   }
 };
 setInterval(refreshBadge, 30000);
+function pwError(p) {
+  return p.length < 8 || !/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/\d/.test(p) || !/[^A-Za-z0-9\s]/.test(p)
+    ? 'الباسورد لازم يكون 8 حروف على الأقل، وفيه حرف كبير وحرف صغير (إنجليزي) ورقم وعلامة زي ! @ #' : '';
+}
 let resetEmail = '';
 const who = () => val('ae') || val('aph2').replace(/\s/g, '');
 const GOVS = ['القاهرة','الجيزة','الإسكندرية','القليوبية','الشرقية','الدقهلية','البحيرة','الغربية','المنوفية','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس','شمال سيناء','جنوب سيناء','الفيوم','بني سويف','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان','البحر الأحمر','الوادي الجديد','مطروح'];
 function authBox(mode) {
   const a = $('auth'); a.hidden = false;
   const em = `<input id="ae" type="email" placeholder="الإيميل" dir="ltr">`;
-  const pw = `<input id="ap" type="password" placeholder="الباسورد (6 حروف على الأقل)" dir="ltr">`;
+  const pw = `<input id="ap" type="password" placeholder="الباسورد (8+ حروف: كبير وصغير ورقم وعلامة)" dir="ltr">`;
   const t = { login: 'تسجيل الدخول', signup: 'إنشاء حساب جديد', forgot: 'استعادة بالإيميل', forgotw: 'نسيت الباسورد', mycode: 'كود الاستعادة من المالك', code: 'كود الاستعادة', newpw: 'باسورد جديد' }[mode];
   let f = '', go = 'دخول';
   if (mode === 'login') f = em + pw + '<a href="#" id="fg" style="color:var(--ac)">نسيت الباسورد؟</a>';
@@ -339,6 +343,7 @@ function authBox(mode) {
       return authBox('mycode');
     }
     if (mode === 'mycode') {
+      { const pe = pwError($('ap').value); if (pe) return toast(pe) }
       const { data, error } = await sb.rpc('reset_with_code', { p_who: who(), p_code: val('ac'), p_new: $('ap').value });
       if (error) return toast(error.message);
       if (data !== 'ok') return toast(data);
@@ -349,11 +354,12 @@ function authBox(mode) {
       const ph = val('aph').replace(/\s/g, '');
       if (!/^01\d{9}$/.test(ph)) return toast('اكتب رقم موبايل مصري صحيح (11 رقم)');
       if (!$('ag').value || !val('aa')) return toast('اختار المحافظة واكتب المنطقة');
+      { const pe = pwError($('ap').value); if (pe) return toast(pe) }
       r = await sb.auth.signUp({ email: val('ae'), password: $('ap').value, options: { data: { phone: ph, governorate: $('ag').value, area: val('aa') } } });
     }
     if (mode === 'forgot') { r = await sb.auth.resetPasswordForEmail(val('ae'), { redirectTo: location.origin + location.pathname }); if (!r.error) { resetEmail = val('ae'); toast('اتبعتلك كود على الإيميل'); return authBox('code') } }
-    if (mode === 'code') { r = await sb.auth.verifyOtp({ email: resetEmail, token: val('ac'), type: 'recovery' }); if (!r.error) r = await sb.auth.updateUser({ password: $('ap').value }) }
-    if (mode === 'newpw') r = await sb.auth.updateUser({ password: $('ap').value });
+    if (mode === 'code') { const pe = pwError($('ap').value); if (pe) return toast(pe); r = await sb.auth.verifyOtp({ email: resetEmail, token: val('ac'), type: 'recovery' }); if (!r.error) r = await sb.auth.updateUser({ password: $('ap').value }) }
+    if (mode === 'newpw') { const pe = pwError($('ap').value); if (pe) return toast(pe); r = await sb.auth.updateUser({ password: $('ap').value }) }
     if (r.error) return toast(/confirm/i.test(r.error.message) ? 'الإيميل لسه مش متأكد. تواصل مع المتجر' : r.error.message);
     a.hidden = true; toast(mode === 'signup' && r.data && !r.data.session ? 'تم إنشاء الحساب. لازم تأكد إيميلك من الرسالة قبل الدخول' : 'تم');
   };
