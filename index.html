@@ -172,42 +172,42 @@ async function openInbox() {
   if (data != null) $('vis').textContent = 'عدد الزيارات: ' + Number(data).toLocaleString('ar-EG');
 })();
 let uvData = [], view = 'shop', bulk = [];
+function newRow() { return { f: null, url: '', n: '', p: '', c: (cats[0] || {}).name || '', d: '', v: '' } }
 function setupBulk() {
-  if (!$('bf')) return;
-  $('bf').onchange = () => {
-    const all = [...$('bf').files];
-    if (all.length > 100) toast('الحد الأقصى 100 منتج في المرة، أخدت أول 100 صورة');
-    bulk = all.slice(0, 100).map(f => ({ f, url: URL.createObjectURL(f), n: f.name.replace(/\.[^.]+$/, ''), p: '', c: $('bc').value, d: '', v: '' }));
-    drawBulk();
-  };
-  $('bc').onchange = () => { bulk.forEach(b => b.c = $('bc').value); drawBulk() };
-  $('bl').oninput = e => { const t = e.target; if (t.dataset.k) bulk[+t.dataset.i][t.dataset.k] = t.value };
+  if (!$('bl')) return;
+  if (!bulk.length) bulk = [newRow()];
+  $('badd').onclick = () => { if (bulk.length >= 100) return toast('الحد الأقصى 100 منتج في المرة'); bulk.push(newRow()); drawBulk(); const r = $('bl').lastElementChild; if (r) r.scrollIntoView({ behavior: 'smooth', block: 'center' }) };
+  $('bl').oninput = e => { const t = e.target; if (t.dataset.k && t.type !== 'file') bulk[+t.dataset.i][t.dataset.k] = t.value };
+  $('bl').onchange = e => { const t = e.target; if (t.type === 'file' && t.files[0]) { const b = bulk[+t.dataset.i]; b.f = t.files[0]; b.url = URL.createObjectURL(t.files[0]); drawBulk() } };
+  $('bl').onclick = e => { const x = e.target.closest('[data-rm]'); if (x) { bulk.splice(+x.dataset.rm, 1); if (!bulk.length) bulk = [newRow()]; drawBulk() } };
   $('bgo').onclick = publishBulk;
+  drawBulk();
 }
 function drawBulk() {
-  $('bl').innerHTML = bulk.map((b, i) => `<div class="row" style="align-items:start;border-bottom:1px solid var(--bd);padding:8px 0"><div style="display:flex;gap:8px;align-items:center"><img src="${b.url}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px"><b>${i + 1}</b></div><input data-i="${i}" data-k="n" placeholder="اسم المنتج" value="${esc(b.n)}"><input data-i="${i}" data-k="p" type="number" min="0" placeholder="السعر" value="${esc(b.p)}"><select data-i="${i}" data-k="c">${cats.map(c => `<option${c.name === b.c ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select><input data-i="${i}" data-k="d" maxlength="200" placeholder="وصف عام (للزبون)" value="${esc(b.d)}"><input data-i="${i}" data-k="v" placeholder="تفاصيل خاصة (للأدمن بس)" value="${esc(b.v)}"><button class="btn sec" type="button" data-rm="${i}" style="margin:0">حذف</button></div>`).join('');
-  $('bgo').hidden = !bulk.length;
-  $('bl').querySelectorAll('[data-rm]').forEach(x => x.onclick = () => { bulk.splice(+x.dataset.rm, 1); drawBulk() });
+  $('bl').innerHTML = bulk.map((b, i) => `<div style="border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>منتج ${i + 1}</b><button class="btn sec" type="button" data-rm="${i}" style="margin:0;width:auto;padding:2px 12px">حذف</button></div><div class="row"><input data-i="${i}" data-k="n" placeholder="اسم المنتج" value="${esc(b.n)}"><input data-i="${i}" data-k="p" type="number" min="0" placeholder="السعر" value="${esc(b.p)}"><select data-i="${i}" data-k="c">${cats.map(c => `<option${c.name === b.c ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div><input data-i="${i}" data-k="d" maxlength="200" placeholder="وصف عام (بيظهر للزبون)" value="${esc(b.d)}" style="margin-top:8px"><textarea data-i="${i}" data-k="v" rows="3" placeholder="تفاصيل خاصة (تظهر للأدمن بس، مش للزباين)" style="margin-top:8px">${esc(b.v)}</textarea><div style="display:flex;gap:10px;align-items:center;margin-top:8px">${b.url ? `<img src="${b.url}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px">` : ''}<input type="file" accept="image/*" data-i="${i}" style="flex:1"></div></div>`).join('');
+  $('bgo').textContent = 'نشر ' + bulk.length + (bulk.length === 1 ? ' منتج' : ' منتجات');
 }
 async function publishBulk() {
-  if (!bulk.length) return;
   const bad = bulk.findIndex(b => !b.n.trim() || b.p === '' || Number(b.p) < 0);
-  if (bad >= 0) return toast('راجع المنتج رقم ' + (bad + 1) + ': الاسم والسعر مطلوبين');
+  if (bad >= 0) return toast('راجع منتج ' + (bad + 1) + ': الاسم والسعر مطلوبين');
   const fee = Number(cfg.listing_fee || 0);
   if (!isOwner() && bal < fee * bulk.length) return toast('الرصيد مش كافي، المطلوب ' + fee * bulk.length + ' ج.م');
   if (!confirm('هتنشر ' + bulk.length + ' منتج. تكمل؟')) return;
   $('bgo').disabled = true; let ok = 0;
   for (let i = 0; i < bulk.length; i++) {
     const b = bulk[i]; $('bp').textContent = 'جاري نشر ' + (i + 1) + ' من ' + bulk.length + '...';
-    const path = Date.now() + '-' + i + '.' + (b.f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const up = await sb.storage.from('products').upload(path, b.f);
-    if (up.error) { toast(up.error.message); break }
-    const img = sb.storage.from('products').getPublicUrl(path).data.publicUrl;
+    let img = '';
+    if (b.f) {
+      const path = Date.now() + '-' + i + '.' + (b.f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const up = await sb.storage.from('products').upload(path, b.f);
+      if (up.error) { toast(up.error.message); break }
+      img = sb.storage.from('products').getPublicUrl(path).data.publicUrl;
+    }
     const { error } = await sb.rpc('publish_product', { p_name: b.n.trim(), p_price: Number(b.p), p_cat: b.c, p_img: img, p_private: (b.v || '').trim(), p_desc: (b.d || '').trim().slice(0, 200) });
     if (error) { toast(error.message); break } ok++;
   }
   bulk = bulk.slice(ok); toast('تم نشر ' + ok + ' منتج' + (bulk.length ? '، فاضل ' + bulk.length + ' لسه' : ''));
-  await load(); if (bulk.length) drawBulk();
+  await load();
 }
 function renderNav() {
   const items = [['shop', 'المتجر']];
@@ -319,13 +319,9 @@ async function renderAdmin() {
   <div class="row"><input id="shn" placeholder="اسم المحل" value="${esc(shop.shop_name)}"><input id="shw" placeholder="واتساب المحل 201xxxxxxxxx" dir="ltr" value="${esc(shop.whatsapp)}"><button class="btn" data-a="shop" type="button">حفظ</button></div>
   <div class="row" style="margin-top:8px"><a class="btn sec" style="margin:0" href="#shop-${me.id}">فتح صفحة محلي</a><button class="btn sec" style="margin:0" type="button" onclick="navigator.clipboard.writeText(location.origin+location.pathname+'#shop-${me.id}');toast('تم نسخ رابط محلك')">نسخ رابط محلي</button></div>
   <hr><h3>إضافة منتج</h3>
-  <form id="f"><input id="fn" placeholder="اسم المنتج" required><input id="fp" type="number" min="0" placeholder="السعر" required><select id="fc">${cats.map(c => `<option>${esc(c.name)}</option>`).join('')}</select><input id="fs" maxlength="200" placeholder="وصف بسيط للمنتج (بيظهر للزبون)" style="grid-column:1/-1"><textarea id="fd" rows="4" placeholder="تفاصيل خاصة (تظهر للأدمن بس، مش للزباين)" style="grid-column:1/-1"></textarea><input id="ff" type="file" accept="image/*"><button class="btn" type="submit">نشر المنتج</button></form>
+  <div id="bl"></div>
+  <div class="row" style="margin-top:8px"><button class="btn sec" id="badd" type="button" style="margin:0">+ إضافة منتج تاني</button><button class="btn" id="bgo" type="button" style="margin:0">نشر المنتجات</button></div><div id="bp" style="color:var(--mu);margin-top:6px"></div>
   <details style="margin-top:10px"><summary style="cursor:pointer">استيراد منتجات كتير من ملف CSV</summary><p style="color:var(--mu);margin:8px 0">الأعمدة بالترتيب: الاسم، السعر، القسم (مطابق لاسم قسم موجود)، رابط الصورة (اختياري)، وصف عام (اختياري)، تفاصيل خاصة (اختياري). الحد 100 صف. الرسوم بتتخصم على كل منتج.</p><input id="csv" type="file" accept=".csv"><button class="btn" data-a="csv" type="button" style="margin-top:8px">استيراد</button></details>
-  <hr><h3>رفع منتجات كتير بالصور مرة واحدة (لحد 100)</h3>
-  <p style="color:var(--mu);margin:0 0 8px">اختار القسم، واختار الصور كلها مرة واحدة، وبعدها اكتب الاسم والسعر والوصف العام والتفاصيل الخاصة لكل صورة، واضغط نشر.</p>
-  <div class="row"><select id="bc">${cats.map(c => `<option>${esc(c.name)}</option>`).join('')}</select><input id="bf" type="file" accept="image/*" multiple></div>
-  <div id="bl" style="margin-top:10px"></div>
-  <button class="btn" id="bgo" type="button" style="margin-top:8px" hidden>نشر كل المنتجات</button><div id="bp" style="color:var(--mu);margin-top:6px"></div>
   <hr><h3>سحب الرصيد</h3>
   <div class="row"><input id="wa" type="number" min="1" placeholder="المبلغ"><select id="wm"><option>إنستا باي</option><option>فودافون كاش</option><option>محفظة إلكترونية أخرى</option></select><input id="wn" placeholder="رقم الحساب أو المحفظة" dir="ltr"><button class="btn" data-a="wd" type="button">طلب سحب</button></div>`;
   a.innerHTML = has('can_panel') ? '<h2>لوحة التحكم</h2>' + shopHtml : '';
